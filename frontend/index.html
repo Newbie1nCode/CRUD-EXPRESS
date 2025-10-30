@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Inventory Management</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-6">
+  <div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold text-center mb-6 text-gray-800">Inventory Management</h1>
+
+    
+    <div class="bg-white p-6 rounded shadow mb-6">
+      <h2 class="text-xl font-semibold mb-4">Add New Item</h2>
+      <form id="itemForm" class="space-y-3">
+        <input type="text" id="name" placeholder="Item Name" class="w-full p-2 border rounded" required />
+        <input type="number" id="quantity" placeholder="Quantity" class="w-full p-2 border rounded" required />
+        <input type="number" id="price" step="0.01" placeholder="Price" class="w-full p-2 border rounded" required />
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Add Item</button>
+      </form>
+    </div>
+
+    <div id="itemsList" class="space-y-3">
+    </div>
+  </div>
+<script>
+  const API_URL = '/api/items';
+  let items = []; 
+
+  async function loadItems() {
+    try {
+      const res = await fetch(API_URL);
+      if (!res.ok) throw new Error('Gagal mengambil data');
+      items = await res.json();
+
+      const container = document.getElementById('itemsList');
+      if (items.length === 0) {
+        container.innerHTML = '<p class="text-gray-500">Belum ada item.</p>';
+        return;
+      }
+
+      container.innerHTML = items.map(item => `
+        <div class="bg-white p-4 rounded shadow flex justify-between items-center">
+          <div>
+            <h3 class="font-bold">${item.name}</h3>
+            <p>Qty: ${item.quantity} | Price: $${item.price.toFixed(2)}</p>
+          </div>
+          <div>
+            <button onclick="editItem(${item.id})" class="text-yellow-600 mr-2">Edit</button>
+            <button onclick="deleteItem(${item.id})" class="text-red-600">Delete</button>
+          </div>
+        </div>
+      `).join('');
+    } catch (err) {
+      console.error(err);
+      document.getElementById('itemsList').innerHTML = '<p class="text-red-500">Gagal memuat data.</p>';
+    }
+  }
+
+  document.getElementById('itemForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const item = {
+      name: document.getElementById('name').value.trim(),
+      quantity: parseInt(document.getElementById('quantity').value),
+      price: parseFloat(document.getElementById('price').value)
+    };
+
+    if (!item.name || isNaN(item.quantity) || isNaN(item.price)) {
+      alert("Semua field harus diisi dengan benar!");
+      return;
+    }
+
+    try {
+      await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item)
+      });
+      document.getElementById('itemForm').reset();
+      loadItems(); // Refresh daftar
+    } catch (err) {
+      alert("Gagal menambah item");
+    }
+  });
+
+  async function deleteItem(id) {
+    if (!confirm('Hapus item ini?')) return;
+    try {
+      await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+      loadItems();
+    } catch (err) {
+      alert("Gagal menghapus item");
+    }
+  }
+
+  async function editItem(id) {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+
+    const name = prompt("Nama item:", item.name);
+    const quantity = prompt("Jumlah:", item.quantity);
+    const price = prompt("Harga:", item.price);
+
+    if (name === null || quantity === null || price === null) return; // dibatalkan
+
+    const updatedItem = {
+      name: name.trim(),
+      quantity: parseInt(quantity),
+      price: parseFloat(price)
+    };
+
+    if (!updatedItem.name || isNaN(updatedItem.quantity) || isNaN(updatedItem.price)) {
+      alert("Data tidak valid!");
+      return;
+    }
+
+    try {
+      await fetch(`${API_URL}/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedItem)
+      });
+      loadItems(); 
+    } catch (err) {
+      alert("Gagal mengupdate item");
+    }
+  }
+
+
+  loadItems();
+</script>
+</body>
+</html>
